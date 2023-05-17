@@ -1,0 +1,8 @@
+mmcv-full
+munkres
+poseval@git+https://github.com/svenkreiss/poseval.git
+regex
+scipy
+titlecase
+torch
+xtcocotools>=1.8
