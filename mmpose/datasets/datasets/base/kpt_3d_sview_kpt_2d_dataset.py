@@ -106,6 +106,16 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
 
         # get image info
         _imgnames = data['imgname']
+        new_name = []
+        for i, name in enumerate(_imgnames):
+            first_name, middle_name = name.split('\\', 1)
+            second_name, third_name = middle_name.split('\\', 1)
+            all = (first_name, second_name, third_name)
+            new_name.append('/'.join(all))
+        _imgnames = np.array(new_name)
+        #print(_imgnames)
+        #print(type(_imgnames))
+        #print(_imgnames.shape)
         num_imgs = len(_imgnames)
         num_joints = self.ann_info['num_joints']
 
@@ -202,6 +212,8 @@ class Kpt3dSviewKpt2dDataset(Dataset, metaclass=ABCMeta):
             results['target_2d'] = _joints_2d[target_idx, :, :2]
 
         if self.need_camera_param:
+            #print('_imgnames', _imgnames)
+            #print('_imgnames[0]', _imgnames[0])
             _cam_param = self.get_camera_param(_imgnames[0])
             results['camera_param'] = _cam_param
             # get image size from camera parameters

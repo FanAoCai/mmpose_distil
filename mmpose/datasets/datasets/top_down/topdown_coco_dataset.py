@@ -12,9 +12,6 @@ from xtcocotools.cocoeval import COCOeval
 from ....core.post_processing import oks_nms, soft_oks_nms
 from ...builder import DATASETS
 from ..base import Kpt2dSviewRgbImgTopDownDataset
-import pdb
-import math
-import numpy as np
 
 
 @DATASETS.register_module()
@@ -277,6 +274,8 @@ class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
 
             batch_size = len(image_paths)
             for i in range(batch_size):
+                #print('image_paths', image_paths[i])
+                #print('self.img_prefix', len(self.img_prefix))
                 image_id = self.name2id[image_paths[i][len(self.img_prefix):]]
                 kpts[image_id].append({
                     'keypoints': preds[i],
@@ -389,8 +388,8 @@ class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
 
             for i in range(51):
                 if np.isnan(result[0]['keypoints'][i]):
-                    print(j)
-                    print(i)
+                    #print(j)
+                    #print(i)
                     result[0]['keypoints'][i] = 0
             cat_results.extend(result)
 

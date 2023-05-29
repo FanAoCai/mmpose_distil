@@ -12,11 +12,6 @@ from .. import builder
 from ..builder import POSENETS
 from .base import BasePose
 
-import torch
-import time
-
-import pdb
-
 try:
     from mmcv.runner import auto_fp16
 except ImportError:
@@ -147,49 +142,9 @@ class TopDown(BasePose):
         return self.forward_test(
             img, img_metas, return_heatmap=return_heatmap, **kwargs)
 
-    def train_step(self, data_batch, optimizer, **kwargs):
-        if 'teacher_output_heatmap' in data_batch:
-            losses = self.forward_distill(data_batch['img'], data_batch['teacher_output_heatmap'], data_batch['target'],
-                            data_batch['target_weight'], **kwargs)
-        else:
-            losses = self.forward(**data_batch)
-
-        loss, log_vars = self._parse_losses(losses)
-        outputs = dict(
-            loss=loss,
-            log_vars=log_vars,
-            num_samples=len(next(iter(data_batch.values()))))
-
-        return outputs
-
-
-    def forward_distill(self, img, teacher_output, target, target_weight,**kwargs):
-        """Defines the computation performed at every call when training."""
-        output = self.backbone(img)
-        #print("output_bachbone:  ", output[0].shape) 
-        #print('teacher_output', teacher_output[0].shape)
-        if self.with_neck:
-            output = self.neck(output)
-        if self.with_keypoint:
-            output = self.keypoint_head(output)
-
-        # if return loss
-        losses = dict()
-        if self.with_keypoint:
-            distillation_loss = self.keypoint_head.get_loss(
-                output, teacher_output, target, target_weight
-            )
-            losses.update(distillation_loss)
-            keypoint_accuracy = self.keypoint_head.get_accuracy(
-                output, target, target_weight)
-            losses.update(keypoint_accuracy)
-
-        return losses
-
     def forward_train(self, img, target, target_weight, img_metas, **kwargs):
         """Defines the computation performed at every call when training."""
         output = self.backbone(img)
-        #print(output[0].shape)
         if self.with_neck:
             output = self.neck(output)
         if self.with_keypoint:
@@ -206,22 +161,6 @@ class TopDown(BasePose):
             losses.update(keypoint_accuracy)
 
         return losses
-
-    def forward_test_distill(self, img, **kwargs):
-        """Defines the computation performed at every call when testing."""
-        result = {}
-        self.backbone.eval()
-        img=torch.tensor(img).cuda()
-        with torch.no_grad():
-            features = self.backbone(img)
-            #print('teacher_features', features[0].shape)
-            if self.with_neck:
-                features = self.neck(features)
-        if self.with_keypoint:
-            output_heatmap = self.keypoint_head(features)
-        result['output_heatmap'] = output_heatmap
-        return result
-
 
     def forward_test(self, img, img_metas, return_heatmap=False, **kwargs):
         """Defines the computation performed at every call when testing."""

@@ -339,5 +339,6 @@ class Body3DH36MDataset(Kpt3dSviewKpt2dDataset):
     def get_camera_param(self, imgname):
         """Get camera parameters of a frame by its image name."""
         assert hasattr(self, 'camera_param')
+        #print('imagname', imgname)
         subj, _, camera = self._parse_h36m_imgname(imgname)
         return self.camera_param[(subj, camera)]

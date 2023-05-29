@@ -188,7 +188,7 @@ def main():
             config=cfg.pretty_text,
         )
     
-    if 'distil' in cfg.model:
+    if 'distillation' in cfg:
         teacher_cfg = Config.fromfile(cfg.model.teacher_config)
         teacher_dataset = [build_dataset(teacher_cfg.data.train)]
         distil_train_model(

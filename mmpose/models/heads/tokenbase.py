@@ -244,7 +244,9 @@ class TokenPose_TB_base(nn.Module):
         #print(self.channels)
         #print(self.patch_size1)
         #print(self.patch_size2)
+        assert not torch.any(torch.isnan(x)), "rerrange has nan"  
         x = self.patch_to_embedding(x)
+        assert not torch.any(torch.isnan(x)), "patch_to_embedding has nan"
 
         b, n, _ = x.shape
 
@@ -255,14 +257,18 @@ class TokenPose_TB_base(nn.Module):
         else:
             x = torch.cat((keypoint_tokens, x), dim=1)
             x += self.pos_embedding[:, :(n + self.num_keypoints)]
+        assert not torch.any(torch.isnan(x)), "pos_embedding_type has nan"
         x = self.dropout(x)
+        assert not torch.any(torch.isnan(x)), "dropout has nan"  
 
         x = self.transformer(x, mask,self.pos_embedding)
+        #assert not torch.any(torch.isnan(x)), "transformer has nan"  
 
         kpt_token = x[:, 0:self.num_keypoints]
         vis_token = x[:, self.num_keypoints:]
         x = self.to_keypoint_token(kpt_token)
         x = self.mlp_head(x)
+        #assert not torch.any(torch.isnan(x)), "mlp_head has nan"  
         x = rearrange(x,'b c (p1 p2) -> b c p1 p2',p1=self.heatmap_size[0],p2=self.heatmap_size[1])
         
         output = EasyDict(

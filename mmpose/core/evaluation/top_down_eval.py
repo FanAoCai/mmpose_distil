@@ -591,7 +591,7 @@ def keypoints_from_heatmaps(heatmaps,
         if post_process == 'unbiased':  # alleviate biased coordinate
             # apply Gaussian distribution modulation.
             heatmaps = np.log(
-                np.maximum(_gaussian_blur(heatmaps, kernel), 1e-10))
+                np.maximum(_gaussian_blur(heatmaps, kernel), 1e-10) + 1e-5)
             for n in range(N):
                 for k in range(K):
                     preds[n][k] = _taylor(heatmaps[n][k], preds[n][k])

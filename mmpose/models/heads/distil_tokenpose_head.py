@@ -9,6 +9,7 @@ from mmpose.core.post_processing import flip_back
 from mmpose.models.builder import HEADS, build_loss
 
 from .tokenbase import TokenPose_TB_base
+import torch
 
 BN_MOMENTUM = 0.1
 
@@ -110,14 +111,24 @@ class DistilTokenPoseHead(nn.Module):
         losses = dict()
         assert not isinstance(self.loss, nn.Sequential)
         assert target.dim() == 4 and target_weight.dim() == 3
+        
+        #assert not torch.any(torch.isnan(student_vis_token)), "student_vis_token has nan"
+        #assert not torch.any(torch.isnan(student_kpt_token)), "student_kpt_token has nan"
+        #assert not torch.any(torch.isnan(student_hm)), "student_hm has nan"
+        #assert not torch.any(torch.isnan(teacher_vis_token)), "teacher_vis_token has nan"
+        #assert not torch.any(torch.isnan(teacher_kpt_token)), "teacher_kpt_token has nan"
+        #assert not torch.any(torch.isnan(teacher_hm)), "teacher_hm has nan"
 
         losses['student_loss'] = self.loss(student_hm, target, target_weight)       #basic loss
         if self.vis_token_dist_loss is not None:
             losses['vis_dist_loss'] = self.vis_token_dist_loss(student_vis_token, teacher_vis_token)    #vistoken loss
+        assert not torch.any(torch.isnan(losses['vis_dist_loss'])), "losses['vis_dist_loss'] has nan" 
         if self.kpt_token_dist_loss is not None:
             losses['kpt_dist_loss'] = self.kpt_token_dist_loss(student_kpt_token, teacher_kpt_token)    #keypoint loss
+        assert not torch.any(torch.isnan(losses['kpt_dist_loss'])), "losses['kpt_dist_loss'] has nan"
         if self.heatmap_loss is not None:   
             losses['heatmap_loss'] = self.heatmap_loss(student_hm, teacher_hm, target_weight)
+        assert not torch.any(torch.isnan(losses['heatmap_loss'])), "losses['heatmap_loss'] has nan"
         return losses
 
     def get_accuracy(self, output, target, target_weight):

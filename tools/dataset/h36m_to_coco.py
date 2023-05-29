@@ -24,6 +24,10 @@ def _keypoint_camera_to_world(keypoints,
     """
     cam_key = None
     if dataset == 'Body3DH36MDataset':
+        #first_name, middle_name = image_name.split('\\', 1)
+        #second_name, third_name = middle_name.split('\\', 1)
+        #all = (first_name, second_name, third_name)
+        #image_name = '/'.join(all)
         subj, rest = osp.basename(image_name).split('_', 1)
         _, rest = rest.split('.', 1)
         camera, rest = rest.split('_', 1)
@@ -95,13 +99,13 @@ def _get_ann(idx, kpt_2d, kpt_3d, center, scale, imgname, camera_params):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--ann-file', type=str, default='tests/data/h36m/test_h36m_body3d.npz')
+        '--ann-file', type=str, default='/HOME/scz3186/run/fanao/dataset/human3.6m/annotation_body3d/fps10/h36m_test.npz')
     parser.add_argument(
         '--camera-param-file', type=str, default='tests/data/h36m/cameras.pkl')
-    parser.add_argument('--img-root', type=str, default='tests/data/h36m')
+    parser.add_argument('--img-root', type=str, default='/HOME/scz3186/run/fanao/dataset/human3.6m/images')
     parser.add_argument(
-        '--out-file', type=str, default='tests/data/h36m/h36m_coco.json')
-    parser.add_argument('--full-img-name', action='store_true')
+        '--out-file', type=str, default='tests/data/h36m/fps10_h36m_coco_test.json')
+    parser.add_argument('--full-img-name', default=True)
 
     args = parser.parse_args()
 
@@ -130,11 +134,21 @@ def main():
 
     # images
     imgnames = h36m_data['imgname']
+    new_name=[]
+    for i, name in enumerate(imgnames):
+        #print(name)
+        first_name, middle_name, third_name = name.split('\\')
+        all = (first_name, middle_name, third_name)
+        new_name.append('/'.join(all))
+    imgnames = np.array(new_name)
+    #print(args.full_img_name)
     if not args.full_img_name:
         imgnames = [osp.basename(fn) for fn in imgnames]
+    #print(imgnames)
     tasks = [(idx, fn, args.img_root) for idx, fn in enumerate(imgnames)]
 
     h36m_imgs = mmcv.track_parallel_progress(_get_img_info, tasks, nproc=12)
+    #print(h36m_imgs)
 
     # annotations
     kpts_2d = h36m_data['part']
@@ -157,6 +171,7 @@ def main():
         'images': h36m_imgs,
         'annotations': h36m_anns,
     }
+    #print(h36m_coco)
 
     mmcv.dump(h36m_coco, args.out_file)
 

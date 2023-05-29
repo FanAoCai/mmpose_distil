@@ -63,7 +63,11 @@ class TopDownDistil(TopDown):
 
     def forward_train(self, img, target, target_weight, img_metas, **kwargs):
         """Defines the computation performed at every call when training."""
+        assert not torch.any(torch.isnan(img)), "input has nan"
+        #print(img)
         output = self.backbone(img)
+        #print(output)
+        #assert not np.any(np.isnan(np.array(output[0]))), "backbone has nan"  
         if self.with_neck:
             output = self.neck(output)
         
@@ -74,6 +78,8 @@ class TopDownDistil(TopDown):
         if self.with_keypoint:
             output = self.keypoint_head(output)
 
+        #assert not torch.any(torch.isnan(output)), "student_output has nan"
+
         # get teacher output
         with torch.no_grad():
             teacher_output = self.teacher_model.backbone(img)
@@ -82,11 +88,14 @@ class TopDownDistil(TopDown):
             if self.teacher_model.with_keypoint:
                 teacher_output = self.teacher_model.keypoint_head(teacher_output)
 
+        #assert not torch.any(torch.isnan(teacher_output)), "teacher_output has nan"
+
         losses = dict()
         if self.with_keypoint and self.teacher_model.with_keypoint:
             distillation_loss = self.keypoint_head.get_loss(
                 output, teacher_output, target, target_weight
             )
+            #assert not torch.any(torch.isnan(distillation_loss)), "distillation_loss has nan"
             losses.update(distillation_loss)
             keypoint_accuracy = self.keypoint_head.get_accuracy(
                 output, target, target_weight)

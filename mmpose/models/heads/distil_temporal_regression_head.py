@@ -33,6 +33,7 @@ class DistilTemporalRegressionHead(nn.Module):
                  num_joints,
                  max_norm=None,
                  loss_keypoint=None,
+                 loss_distil_dist=None,
                  is_trajectory=False,
                  train_cfg=None,
                  test_cfg=None):
@@ -42,6 +43,8 @@ class DistilTemporalRegressionHead(nn.Module):
         self.num_joints = num_joints
         self.max_norm = max_norm
         self.loss = build_loss(loss_keypoint)
+        if loss_distil_dist is not None:
+            self.distil_loss = build_loss(loss_distil_dist)
         self.is_trajectory = is_trajectory
         if self.is_trajectory:
             assert self.num_joints == 1
@@ -117,11 +120,18 @@ class DistilTemporalRegressionHead(nn.Module):
             losses['traj_loss'] = self.loss(output, target, target_weight) 
 
         # pose model
+        #else:
+            #if target_weight is None:
+                #target_weight = target.new_ones(target.shape)
+            #assert target.dim() == 3 and target_weight.dim() == 3
+            #losses['reg_loss'] = self.loss(output, target, target_weight)* 0.95 + self.loss(teacher_output, output, target_weight) * 0.05
+
         else:
             if target_weight is None:
                 target_weight = target.new_ones(target.shape)
             assert target.dim() == 3 and target_weight.dim() == 3
-            losses['reg_loss'] = self.loss(output, target, target_weight)* 0.95 + self.loss(teacher_output, output, target_weight) * 0.05
+            losses['reg_loss'] = self.loss(output, target, target_weight)
+            losses['distil_loss'] = self.loss(output, teacher_output, target_weight)
 
         return losses
 
