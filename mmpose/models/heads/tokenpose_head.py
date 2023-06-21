@@ -1,4 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
+from einops import rearrange, repeat
 import numpy as np
 import torch.nn as nn
 from mmcv.cnn import normal_init
@@ -79,10 +80,12 @@ class TokenPoseHead(nn.Module):
                 Weights across different joint types.
         """
         losses = dict()
-
+        
+        #target = rearrange(target, 'b f j h w -> (b f) j h w')
+        #target_weight = rearrange(target_weight, 'b f j p -> (b f) j p')
         assert not isinstance(self.loss, nn.Sequential)
         assert target.dim() == 4 and target_weight.dim() == 3
-
+     
         losses['teacher_heatmap_loss'] = self.loss(output.pred, target, target_weight)
 
         return losses

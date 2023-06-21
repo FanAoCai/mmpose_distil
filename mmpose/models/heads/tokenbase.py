@@ -10,6 +10,16 @@ import numpy as np
 MIN_NUM_PATCHES = 16
 BN_MOMENTUM = 0.1
 
+class LinearProjectionCNN(nn.Module):
+    def __init__(self, in_channel, out_channel):
+        super().__init__()
+        self.conv = nn.Conv2d(in_channel, out_channel, kernel_size=3, stride=2, padding=1)
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.conv(x)   # x.shape=(N,17,16,12)
+        x = x.flatten(2)   # x.shape=(N,17,192)
+        return x
+
 class Residual(nn.Module):
     def __init__(self, fn):
         super().__init__()
@@ -101,7 +111,7 @@ class Transformer(nn.Module):
 
 class TokenPose_TB_base(nn.Module):
     def __init__(self, *, feature_size, patch_size, num_keypoints, dim, depth, heads, 
-                 mlp_ratio, apply_init=False, apply_multi=True, heatmap_size=[64,48], 
+                 mlp_ratio, apply_init=False, apply_multi=True, heatmap_size=[64,64], 
                  channels = 48, dropout = 0., emb_dropout = 0., pos_embedding_type="learnable"):
         """
         TokenPose base head, heatmap-based prediction head.

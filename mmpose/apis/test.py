@@ -62,12 +62,13 @@ def multi_gpu_test(model, data_loader, tmpdir=None, gpu_collect=False):
     model.eval()
     results = []
     dataset = data_loader.dataset
+    judgement=0
     rank, world_size = get_dist_info()
     if rank == 0:
         prog_bar = mmcv.ProgressBar(len(dataset))
     for data in data_loader:
         with torch.no_grad():
-            result = model(return_loss=False, **data)
+            result = model(judgement, return_loss=False, **data)
         results.append(result)
 
         if rank == 0:

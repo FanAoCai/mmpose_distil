@@ -19,6 +19,7 @@ from .voxelpose_head import CuboidCenterHead, CuboidPoseHead
 from .distil_temporal_regression_head import DistilTemporalRegressionHead
 from .tokenpose_head import TokenPoseHead
 from .distil_tokenpose_head import DistilTokenPoseHead
+from .transformer_temporal_regression_head import TransformerTemporalRegressionHead
 
 __all__ = [
     'TopdownHeatmapSimpleHead', 'TopdownHeatmapMultiStageHead',
@@ -27,5 +28,5 @@ __all__ = [
     'DeepposeRegressionHead', 'TemporalRegressionHead', 'Interhand3DHead',
     'HMRMeshHead', 'DeconvHead', 'ViPNASHeatmapSimpleHead', 'CuboidCenterHead',
     'CuboidPoseHead', 'MultiModalSSAHead', 'DEKRHead', 'DistilTemporalRegressionHead', 
-    'TokenPoseHead', 'DistilTokenPoseHead'
+    'TokenPoseHead', 'DistilTokenPoseHead', 'TransformerTemporalRegressionHead'
 ]

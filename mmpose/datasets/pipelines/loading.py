@@ -69,6 +69,7 @@ class LoadImageFromFile:
         elif image_file is not None:
             # Load single image from path
             results['img'] = self._read_image(image_file)
+            #print('here')
         else:
             if 'img' not in results:
                 # If `image_file`` is not in results, check the `img` exists

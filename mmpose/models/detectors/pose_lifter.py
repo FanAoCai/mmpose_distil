@@ -183,7 +183,10 @@ class PoseLifter(BasePose):
         """Defines the computation performed at every call when training."""
         assert input.size(0) == len(metas)
 
-        # print('input',input.shape)
+        #print('input', input.shape)
+        #print('input', input)
+        #print('target', target[0].sahpe)
+        #print('target', target)
         # supervised learning
         # pose model
         features = self.backbone(input)

@@ -2,35 +2,21 @@ _base_ = [
     '../../../../_base_/default_runtime.py',
     '../../../../_base_/datasets/coco.py'
 ]
-log_level = 'INFO'
-load_from = None
-resume_from = None
-dist_params = dict(backend='nccl')
-workflow = [('train', 1)]
-checkpoint_config = dict(interval=10)
 evaluation = dict(interval=10, metric='mAP', save_best='AP')
 
 optimizer = dict(
     type='Adam',
     lr=5e-4,
 )
-
-optimizer_config = dict(grad_clip=dict(max_norm=1, norm_type=2))
+optimizer_config = dict(grad_clip=None)
 # learning policy
 lr_config = dict(
     policy='step',
     warmup='linear',
     warmup_iters=500,
-    warmup_ratio=0.0001,
-    step=[120, 200])
-total_epochs = 300
-log_config = dict(
-    interval=50,
-    hooks=[
-        dict(type='TextLoggerHook'),
-        # dict(type='TensorboardLoggerHook')
-    ])
-
+    warmup_ratio=0.001,
+    step=[170, 200])
+total_epochs = 210
 channel_cfg = dict(
     num_output_channels=17,
     dataset_joints=17,
@@ -41,60 +27,22 @@ channel_cfg = dict(
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
     ])
 
-#resume = True
-#load_from = 'work_dirs/distill_hrnet_w48_litehrnet_18_coco_256x192/best_AP_epoch_130.pth'
-
 # model settings
 model = dict(
-    type='TopDownDistil',
-    #pretrained='work_dirs/distill_hrnet_w48_litehrnet_18_coco_256x192/best_AP_epoch_130.pth',
-    teacher_config='configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/teacher_hr48_coco_256x192.py',
-    teacher_ckpt='tmodel_checkpoint/hrnet_w48_256x192_tokenpose_d12_h8.pth',
-    backbone=dict(
-        type='LiteHRNet',
-        in_channels=3,
-        extra=dict(
-            stem=dict(stem_channels=32, out_channels=32, expand_ratio=1),
-            num_stages=3,
-            stages_spec=dict(
-                num_modules=(2, 4, 2),
-                num_branches=(2, 3, 4),
-                num_blocks=(2, 2, 2),
-                module_type=('LITE', 'LITE', 'LITE'),
-                with_fuse=(True, True, True),
-                reduce_ratios=(8, 8, 8),
-                num_channels=(
-                    (40, 80),
-                    (40, 80, 160),
-                    (40, 80, 160, 320),
-                )),
-            with_head=True,
-        )),
+    type='TopDown',
+    pretrained=None,
+    backbone=dict(type='ViPNAS_ResNet', depth=50),
     keypoint_head=dict(
-        type='DistilTokenPoseHead',
-        in_channels=48,
-        num_joints=channel_cfg['num_output_channels'],
-        loss_keypoint=dict(type='JointsMSELoss', use_target_weight=True),
-        loss_vis_token_dist=dict(type='TokenDistilLoss', loss_weight=0.0005),
-        loss_kpt_token_dist=dict(type='TokenDistilLoss', loss_weight=0.0005),
-        loss_heatmap=dict(type='JointsMSELoss', use_target_weight=True, loss_weight=1),
-        tokenpose_cfg=dict(
-            feature_size=[64, 48],
-            patch_size=[4,3],
-            dim=192,
-            depth=12,
-            heads=8,
-            mlp_ratio=3,
-            heatmap_size=[64, 48],
-            pos_embedding_type='sine-full',
-            apply_init=True)),
+        type='ViPNASHeatmapSimpleHead',
+        in_channels=608,
+        out_channels=channel_cfg['num_output_channels'],
+        loss_keypoint=dict(type='JointsMSELoss', use_target_weight=True)),
     train_cfg=dict(),
     test_cfg=dict(
         flip_test=True,
-        post_process='unbiased',
+        post_process='default',
         shift_heatmap=True,
         modulate_kernel=11))
-
 
 data_cfg = dict(
     image_size=[192, 256],
@@ -109,7 +57,8 @@ data_cfg = dict(
     vis_thr=0.2,
     use_gt_bbox=False,
     det_bbox_thr=0.0,
-    bbox_file='data/coco/person_detection_results/COCO_val2017_detections_AP_H_56_person.json',
+    bbox_file='data/coco/person_detection_results/'
+    'COCO_val2017_detections_AP_H_56_person.json',
 )
 
 train_pipeline = [
@@ -133,7 +82,7 @@ train_pipeline = [
     dict(type='TopDownGenerateTarget', sigma=2),
     dict(
         type='Collect',
-        keys=['img','target', 'target_weight'],
+        keys=['img', 'target', 'target_weight'],
         meta_keys=[
             'image_file', 'joints_3d', 'joints_3d_visible', 'center', 'scale',
             'rotation', 'bbox_score', 'flip_pairs'
@@ -164,28 +113,27 @@ data_root = 'data/coco'
 data = dict(
     samples_per_gpu=64,
     workers_per_gpu=2,
-    val_dataloader=dict(samples_per_gpu=64),
-    test_dataloader=dict(samples_per_gpu=64),
+    val_dataloader=dict(samples_per_gpu=32),
+    test_dataloader=dict(samples_per_gpu=32),
     train=dict(
         type='TopDownCocoDataset',
         ann_file=f'{data_root}/annotations/person_keypoints_train2017.json',
-        img_prefix=f'{data_root}/train2017/train2017',
+        img_prefix=f'{data_root}/train2017/',
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
     val=dict(
         type='TopDownCocoDataset',
         ann_file=f'{data_root}/annotations/person_keypoints_val2017.json',
-        img_prefix=f'{data_root}/val2017/val2017/',
+        img_prefix=f'{data_root}/val2017/',
         data_cfg=data_cfg,
         pipeline=val_pipeline,
         dataset_info={{_base_.dataset_info}}),
     test=dict(
         type='TopDownCocoDataset',
         ann_file=f'{data_root}/annotations/person_keypoints_val2017.json',
-        img_prefix=f'{data_root}/val2017/val2017/',
+        img_prefix=f'{data_root}/val2017/',
         data_cfg=data_cfg,
         pipeline=test_pipeline,
         dataset_info={{_base_.dataset_info}}),
 )
-

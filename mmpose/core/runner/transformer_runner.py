@@ -1,85 +1,64 @@
-# Copyright (c) Open-MMLab. All rights reserved.
+# Copyright (c) OpenMMLab. All rights reserved.
 import os.path as osp
-import time
 import platform
 import shutil
+import time
 import warnings
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
-
-import mmcv
-from mmcv.runner.builder import RUNNERS
-from mmcv.runner import EpochBasedRunner
-from mmcv.runner import BaseRunner
 from torch.utils.data import DataLoader
 
-from mmcv.parallel import is_module_wrapper
-from mmcv.runner.utils import get_host_info
-from mmcv.runner.checkpoint import save_checkpoint
+import mmcv
+from mmcv.runner import BaseRunner, RUNNERS, save_checkpoint, get_host_info
+# from mmcv.runner import RUNNERS
+# from mmcv.runner import save_checkpoint
+# from mmcv.runner import get_host_info
 
-from typing import (Any, Callable, Dict, List, Optional, Tuple, Union,
-                    no_type_check)
-
-import pdb
-
-def cycle(iterable):
-    iterator = iter(iterable)
-    while True:
-        try:
-            yield next(iterator)
-        except StopIteration:
-            iterator = iter(iterable)
 
 @RUNNERS.register_module()
-class DistilRunner(BaseRunner):
-    """Knowledge Distillation Epoch-based Runner.
+class TransformerRunner(BaseRunner):
+    """Epoch-based Runner.
 
-    This runner train models epoch by epoch, the epoch length is defined by the
-    dataloader[0], which is the main dataloader.
+    This runner train models epoch by epoch.
     """
-    def run_iter(self, data_batch: Any, teacher_batch: Any, train_mode: bool, **kwargs) -> None:
+
+    def run_iter(self, judgement, data_batch: Any, train_mode: bool, **kwargs) -> None:
         if self.batch_processor is not None:
             outputs = self.batch_processor(
-                self.model, data_batch, teacher_batch, train_mode=train_mode, **kwargs)
+                self.model, data_batch, train_mode=train_mode, **kwargs)
         elif train_mode:
-            # print(data_batch.items())
-            # print(teacher_batch.items())
-            outputs = self.model.train_step(data_batch, teacher_batch, self.optimizer,
-                                            **kwargs)
+            outputs = self.model.train_step(judgement, data_batch, self.optimizer, **kwargs)
         else:
-            outputs = self.model.val_step(data_batch, self.optimizer, **kwargs)
+            outputs = self.model.val_step(judgement, data_batch, self.optimizer, **kwargs)
         if not isinstance(outputs, dict):
             raise TypeError('"batch_processor()" or "model.train_step()"'
                             'and "model.val_step()" must return a dict')
         if 'log_vars' in outputs:
             self.log_buffer.update(outputs['log_vars'], outputs['num_samples'])
-        print('outputs:    ', outputs)
         self.outputs = outputs
 
-    def train(self, data_loader, teacher_data_loaders, **kwargs):
+    def train(self, judgement, data_loader, **kwargs):
         self.model.train()
         self.mode = 'train'
         self.data_loader = data_loader
-        self.teacher_data_loaders = teacher_data_loaders
         self._max_iters = self._max_epochs * len(self.data_loader)
         self.call_hook('before_train_epoch')
         time.sleep(2)  # Prevent possible deadlock during epoch transition
-        for i, (data_batch, teacher_batch) in enumerate(zip(self.data_loader, self.teacher_data_loaders)):
+        for i, data_batch in enumerate(self.data_loader):
             self.data_batch = data_batch
-            self.teacher_batch = teacher_batch
             self._inner_iter = i
             self.call_hook('before_train_iter')
-            self.run_iter(data_batch, teacher_batch, train_mode=True, **kwargs)
+            self.run_iter(judgement, data_batch, train_mode=True, **kwargs)
             self.call_hook('after_train_iter')
             del self.data_batch
-            del self.teacher_batch
             self._iter += 1
 
         self.call_hook('after_train_epoch')
         self._epoch += 1
 
     @torch.no_grad()
-    def val(self, data_loader, **kwargs):
+    def val(self, judgement, data_loader, **kwargs):
         self.model.eval()
         self.mode = 'val'
         self.data_loader = data_loader
@@ -89,14 +68,13 @@ class DistilRunner(BaseRunner):
             self.data_batch = data_batch
             self._inner_iter = i
             self.call_hook('before_val_iter')
-            self.run_iter(data_batch, train_mode=False)
+            self.run_iter(judgement, data_batch, train_mode=False)
             self.call_hook('after_val_iter')
             del self.data_batch
         self.call_hook('after_val_epoch')
 
     def run(self,
             data_loaders: List[DataLoader],
-            teacher_data_loaders: List[DataLoader],
             workflow: List[Tuple[str, int]],
             max_epochs: Optional[int] = None,
             **kwargs) -> None:
@@ -137,6 +115,7 @@ class DistilRunner(BaseRunner):
                          self._max_epochs)
         self.call_hook('before_run')
 
+
         while self.epoch < self._max_epochs:
             for i, flow in enumerate(workflow):
                 mode, epochs = flow
@@ -145,16 +124,20 @@ class DistilRunner(BaseRunner):
                         raise ValueError(
                             f'runner has no method named "{mode}" to run an '
                             'epoch')
-                    epoch_runner = getattr(self, mode)     #获取mode的值，是train还是test
+                    epoch_runner = getattr(self, mode)    #获取mode的值，是train还是test
                 else:
                     raise TypeError(
                         'mode in workflow must be a str, but got {}'.format(
                             type(mode)))
 
                 for _ in range(epochs):
+                    self.judgement = 0
                     if mode == 'train' and self.epoch >= self._max_epochs:
                         break
-                    epoch_runner(data_loaders[i], teacher_data_loaders[i], **kwargs)
+                    #if mode == 'train' and self.epoch == 0:
+                    if mode == 'train' and self.epoch == self._max_epochs - 1:
+                        self.judgement = 1
+                    epoch_runner(self.judgement, data_loaders[i], **kwargs)
 
         time.sleep(1)  # wait for some hooks like loggers to finish
         self.call_hook('after_run')
@@ -205,3 +188,4 @@ class DistilRunner(BaseRunner):
                 mmcv.symlink(filename, dst_file)
             else:
                 shutil.copy(filepath, dst_file)
+

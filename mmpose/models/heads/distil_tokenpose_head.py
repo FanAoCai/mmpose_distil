@@ -32,6 +32,7 @@ class DistilTokenPoseHead(nn.Module):
                  loss_vis_token_dist=None,
                  loss_kpt_token_dist=None,
                  loss_heatmap=None,
+                 receptive_field=None,
                  tokenpose_cfg=None,
                  train_cfg=None,
                  test_cfg=None):
@@ -56,6 +57,9 @@ class DistilTokenPoseHead(nn.Module):
         else:
             self.heatmap_loss = None
 
+        if receptive_field is not None:
+            self.receptive_field = receptive_field
+
         self.train_cfg = {} if train_cfg is None else train_cfg
         self.test_cfg = {} if test_cfg is None else test_cfg
         self.target_type = self.test_cfg.get('target_type', 'GaussianHeatmap')
@@ -74,13 +78,19 @@ class DistilTokenPoseHead(nn.Module):
                                            pos_embedding_type=tokenpose_cfg.pos_embedding_type,
                                            apply_init=tokenpose_cfg.apply_init)
 
+        #self.linear_projection = LinearProjectionCNN(in_channel=self.num_joints, out_channel=self.num_joints)
+
+        #self.posetransformer = PoseTransformer(num_frame=receptive_field, num_joints=num_joints, in_chans=192, embed_dim_ratio=256, depth=4,num_heads=8, mlp_ratio=2., qkv_bias=True, qk_scale=None,drop_path_rate=0.1)
+
     def forward(self, x):
         """Forward function."""
         if isinstance(x, list):
             x = x[0]
-        x = self.conv2d(x)
+        #x = self.conv2d(x)
         #print('conv1d: ', x.shape)
         x = self.tokenpose(x)
+        #x = self.linear_projection(x)    # [128, 17, 64, 48]
+        #x = self.posetransformer(x)
         return x
 
     def get_loss(self, output, teacher_output, target, target_weight):

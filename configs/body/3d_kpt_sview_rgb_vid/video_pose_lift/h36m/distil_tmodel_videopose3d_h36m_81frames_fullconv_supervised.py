@@ -39,9 +39,8 @@ channel_cfg = dict(
 # model settings
 model = dict(
     type='PoseLifter',
-    pretrained='checkpoints/videopose_h36m_81frames_fullconv_supervised.pth',
     backbone=dict(
-        type='DistilTCN',
+        type='TCN',
         in_channels=2 * 17,
         stem_channels=1024,
         num_blocks=3,
@@ -57,7 +56,7 @@ model = dict(
     test_cfg=dict(restore_global_position=True))
 
 # data settings
-data_root = 'data/h36m'
+data_root = '/HOME/scz3186/run/fanao/dataset/human3.6m'
 data_cfg = dict(
     num_joints=17,
     seq_len=81,
@@ -141,3 +140,5 @@ data = dict(
         pipeline=test_pipeline,
         dataset_info={{_base_.dataset_info}}),
 )
+
+fp16 = dict(loss_scale=512.)

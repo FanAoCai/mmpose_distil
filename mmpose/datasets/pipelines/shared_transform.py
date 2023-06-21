@@ -158,12 +158,18 @@ class Collect:
 
         data = {}
         for key in self.keys:
+            #print(key)
             if isinstance(key, tuple):
                 assert len(key) == 2
                 key_src, key_tgt = key[:2]
             else:
                 key_src = key_tgt = key
+            #print(key_tgt) 
             data[key_tgt] = results[key_src]
+            #if key == 'image_file':
+            #    data[key_tgt] = np.array(results[key_src])
+            #else:     
+            #    data[key_tgt] = results[key_src]
 
         meta = {}
         if len(self.meta_keys) != 0:
@@ -178,6 +184,8 @@ class Collect:
             meta['bbox_id'] = results['bbox_id']
         data[self.meta_name] = DC(meta, cpu_only=True)
 
+        #print(data['image_file'])
+        #print(data['img'])
         return data
 
     def __repr__(self):

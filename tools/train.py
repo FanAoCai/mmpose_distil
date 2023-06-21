@@ -14,7 +14,7 @@ from mmcv.runner import get_dist_info, init_dist, set_random_seed
 from mmcv.utils import get_git_hash
 
 from mmpose import __version__
-from mmpose.apis import init_random_seed, train_model, distil_train_model
+from mmpose.apis import init_random_seed, train_model, distil_train_model, transformer_train_model
 from mmpose.datasets import build_dataset
 from mmpose.models import build_posenet
 from mmpose.utils import collect_env, get_root_logger, setup_multi_processes
@@ -195,6 +195,15 @@ def main():
             model,
             datasets,
             teacher_dataset,
+            cfg,
+            distributed=distributed,
+            validate=(not args.no_validate),
+            timestamp=timestamp,
+            meta=meta)
+    elif 'transformer' in cfg:
+        transformer_train_model(
+            model,
+            datasets,
             cfg,
             distributed=distributed,
             validate=(not args.no_validate),

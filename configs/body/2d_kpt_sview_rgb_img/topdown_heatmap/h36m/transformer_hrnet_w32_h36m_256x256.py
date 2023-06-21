@@ -2,12 +2,6 @@ _base_ = [
     '../../../../_base_/default_runtime.py',
     '../../../../_base_/datasets/h36m.py'
 ]
-log_level = 'INFO'
-load_from = None
-resume_from = None
-dist_params = dict(backend='nccl')
-workflow = [('train', 1)]
-checkpoint_config = dict(interval=10)
 evaluation = dict(interval=10, metric=['PCK', 'EPE'], save_best='PCK')
 
 optimizer = dict(
@@ -23,13 +17,6 @@ lr_config = dict(
     warmup_ratio=0.001,
     step=[170, 200])
 total_epochs = 210
-log_config = dict(
-    interval=50,
-    hooks=[
-        dict(type='TextLoggerHook'),
-        # dict(type='TensorboardLoggerHook')
-    ])
-
 channel_cfg = dict(
     num_output_channels=17,
     dataset_joints=17,
@@ -40,55 +27,56 @@ channel_cfg = dict(
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
     ])
 
+transformer = True
+
+#resume = True
+#load_from = 'work_dirs/transformer_hrnet_w32_h36m_256x256/epoch_200.pth'
+
 # model settings
 model = dict(
-    type='TopDownDistil',
-    pretrained=None,
-    teacher_config='configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/h36m/hrnet_w48_h36m_token_256x256.py',
-    teacher_ckpt='tmodel_checkpoint/hrnet_w48_h36m_token_256x256.pth',
+    type='TransformerTopDown',
+    pretrained='https://download.openmmlab.com/mmpose/'
+    'pretrain_models/hrnet_w32-36af842e.pth',
     backbone=dict(
-        type='LiteHRNet',
+        type='HRNet',
         in_channels=3,
         extra=dict(
-            stem=dict(stem_channels=32, out_channels=32, expand_ratio=1),
-            num_stages=3,
-            stages_spec=dict(
-                num_modules=(2, 4, 2),
-                num_branches=(2, 3, 4),
-                num_blocks=(2, 2, 2),
-                module_type=('LITE', 'LITE', 'LITE'),
-                with_fuse=(True, True, True),
-                reduce_ratios=(8, 8, 8),
-                num_channels=(
-                    (40, 80),
-                    (40, 80, 160),
-                    (40, 80, 160, 320),
-                )),
-            with_head=True,
-        )),
+            stage1=dict(
+                num_modules=1,
+                num_branches=1,
+                block='BOTTLENECK',
+                num_blocks=(4, ),
+                num_channels=(64, )),
+            stage2=dict(
+                num_modules=1,
+                num_branches=2,
+                block='BASIC',
+                num_blocks=(4, 4),
+                num_channels=(32, 64)),
+            stage3=dict(
+                num_modules=4,
+                num_branches=3,
+                block='BASIC',
+                num_blocks=(4, 4, 4),
+                num_channels=(32, 64, 128)),
+            stage4=dict(
+                num_modules=3,
+                num_branches=4,
+                block='BASIC',
+                num_blocks=(4, 4, 4, 4),
+                num_channels=(32, 64, 128, 256))),
+    ),
     keypoint_head=dict(
-        type='DistilTokenPoseHead',
-        in_channels=48,
-        num_joints=channel_cfg['num_output_channels'],
-        loss_keypoint=dict(type='JointsMSELoss', use_target_weight=True),
-        loss_vis_token_dist=dict(type='TokenDistilLoss', loss_weight=0.0005),
-        loss_kpt_token_dist=dict(type='TokenDistilLoss', loss_weight=0.0005),
-        loss_heatmap=dict(type='JointsMSELoss', use_target_weight=True, loss_weight=1),
-        receptive_field = 27,
-        tokenpose_cfg=dict(
-            feature_size=[64, 64],
-            patch_size=[4,4],
-            dim=256,
-            depth=12,
-            heads=8,
-            mlp_ratio=3,
-            heatmap_size=[64, 64],
-            pos_embedding_type='sine-full',
-            apply_init=True)),
+        type='TopdownHeatmapSimpleHead',
+        in_channels=32,
+        out_channels=channel_cfg['num_output_channels'],
+        num_deconv_layers=0,
+        extra=dict(final_conv_kernel=1, ),
+        loss_keypoint=dict(type='JointsMSELoss', use_target_weight=True)),
     train_cfg=dict(),
     test_cfg=dict(
         flip_test=True,
-        post_process='unbiased',
+        post_process='default',
         shift_heatmap=True,
         modulate_kernel=11))
 
@@ -110,8 +98,7 @@ train_pipeline = [
         num_joints_half_body=8,
         prob_half_body=0.3),
     dict(
-        type='TopDownGetRandomScaleRotation', rot_factor=30,
-        scale_factor=0.25),
+        type='TopDownGetRandomScaleRotation', rot_factor=40, scale_factor=0.5),
     dict(type='TopDownAffine'),
     dict(type='ToTensor'),
     dict(
@@ -150,10 +137,10 @@ test_pipeline = val_pipeline
 
 data_root = '/HOME/scz3186/run/fanao/dataset/human3.6m'
 data = dict(
-    samples_per_gpu=81,
+    samples_per_gpu=64,
     workers_per_gpu=2,
-    val_dataloader=dict(samples_per_gpu=81),
-    test_dataloader=dict(samples_per_gpu=81),
+    val_dataloader=dict(samples_per_gpu=32),
+    test_dataloader=dict(samples_per_gpu=32),
     train=dict(
         type='TopDownH36MDataset',
         ann_file=f'{data_root}/annotation_body2d/fps10_h36m_coco_train.json',

@@ -7,9 +7,9 @@ evaluation = dict(interval=10, metric=['mpjpe', 'p-mpjpe'], save_best='MPJPE')
 # optimizer settings
 optimizer = dict(
     type='Adam',
-    lr=1e-4,
+    lr=1e-3,
 )
-optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
+optimizer_config = dict(grad_clip=None)
 # learning policy
 lr_config = dict(
     policy='exp',
@@ -36,28 +36,28 @@ channel_cfg = dict(
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
     ])
 
-distillation=True
-
 # model settings
 model = dict(
-    type='DistilPoseLifter',
+    type='PoseLifter',
     pretrained=None,
     backbone=dict(
-        type='TCN',
-        in_channels=2 * 17,
-        stem_channels=1024,
-        num_blocks=2,
-        kernel_sizes=(3, 3, 3),
-        dropout=0.25,
-        use_stride_conv=True),
-    teacher_config='configs/body/3d_kpt_sview_rgb_vid/video_pose_lift/h36m/distil_tmodel_videopose3d_h36m_81frames_fullconv_supervised.py',
-    teacher_ckpt='checkpoints/videopose_h36m_81frames_fullconv_supervised.pth',
+        type='PoseTransformer',
+        num_frame=81, 
+        num_joints=17, 
+        in_chans=2, 
+        embed_dim_ratio=32, 
+        depth=4,
+        num_heads=8, 
+        mlp_ratio=2., 
+        qkv_bias=True, 
+        qk_scale=None,
+        drop_rate=0., 
+        attn_drop_rate=0., 
+        drop_path_rate=0.2,  
+        norm_layer=None),
     keypoint_head=dict(
-        type='DistilTemporalRegressionHead',
-        in_channels=1024,
-        num_joints=17,
-        loss_keypoint=dict(type='MPJPELoss'),
-        loss_distil_dist=dict(type='MPJPELoss', use_target_weight=True, loss_weight=1.)),
+        type='TransformerTemporalRegressionHead',
+        loss_keypoint=dict(type='MPJPELoss')),
     train_cfg=dict(),
     test_cfg=dict(restore_global_position=True))
 
@@ -65,7 +65,7 @@ model = dict(
 data_root = '/HOME/scz3186/run/fanao/dataset/human3.6m'
 data_cfg = dict(
     num_joints=17,
-    seq_len=27,
+    seq_len=81,
     seq_frame_interval=1,
     causal=False,
     temporal_padding=True,
@@ -146,5 +146,3 @@ data = dict(
         pipeline=test_pipeline,
         dataset_info={{_base_.dataset_info}}),
 )
-
-fp16 = dict(loss_scale=512.)

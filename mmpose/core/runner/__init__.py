@@ -8,7 +8,7 @@ Description:
 # Copyright (c) OpenMMLab. All rights reserved.
 from .distillation_runner import DistillationRunner
 from .distil_runner import DistilRunner
+from .transformer_runner import TransformerRunner
 
-__all__ = ['DistillationRunner',
-           'DistilRunner']
+__all__ = ['DistillationRunner','DistilRunner', 'TransformerRunner']
 

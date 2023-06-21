@@ -1,6 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-from einops import rearrange
 import warnings
+import os.path as osp
 
 import mmcv
 import numpy as np
@@ -11,7 +11,10 @@ from mmcv.visualization.image import imshow
 from mmpose.core import imshow_bboxes, imshow_keypoints
 from .. import builder
 from ..builder import POSENETS
-from .base import BasePose
+from .transformer_base import TransformerBasePose
+import datetime
+import os
+
 
 try:
     from mmcv.runner import auto_fp16
@@ -22,7 +25,7 @@ except ImportError:
 
 
 @POSENETS.register_module()
-class TopDown(BasePose):
+class TokenTransformerTopDown(TransformerBasePose):
     """Top-down pose detectors.
 
     Args:
@@ -92,6 +95,7 @@ class TopDown(BasePose):
 
     @auto_fp16(apply_to=('img', ))
     def forward(self,
+                judgement,
                 img,
                 target=None,
                 target_weight=None,
@@ -138,23 +142,39 @@ class TopDown(BasePose):
                 and heatmaps.
         """
         if return_loss:
-            return self.forward_train(img, target, target_weight, img_metas,
+            return self.forward_train(judgement, img, target, target_weight, img_metas,
                                       **kwargs)
         return self.forward_test(
             img, img_metas, return_heatmap=return_heatmap, **kwargs)
 
-    def forward_train(self, img, target, target_weight, img_metas, **kwargs):
+    def forward_train(self, judgement, img, target, target_weight, img_metas, **kwargs):
         """Defines the computation performed at every call when training."""
-        #print(img.shape)
-        img = rearrange(img, 'b s d h w -> (b s) d h w')
-        target = rearrange(target, 'b f j h w -> (b f) j h w')
-        target_weight = rearrange(target_weight, 'b f j p -> (b f) j p')
         output = self.backbone(img)
         if self.with_neck:
             output = self.neck(output)
         if self.with_keypoint:
             output = self.keypoint_head(output)
-        #print('finished')
+        print(output.pred)
+        print(target)
+        #print(output.pred.shape)
+        if judgement == 1:
+            if not os.path.exists('./token_heatmap'):
+                os.mkdir('./token_heatmap')
+            if not os.path.exists('./token_image_file'):
+                os.mkdir('./token_image_file')
+            if not os.path.exists('./token_heatmap_image_file'):
+                os.mkdir('./token_heatmap_image_file')
+
+            np.savez_compressed('./token_heatmap/' + 'token_heatmap_' + osp.basename(img_metas[0]['image_file']) + '.npz', 
+                                heatmap = output.pred.detach().cpu().numpy())
+            image_file_list = []
+            for i, data in enumerate(img_metas):
+                image_file_list.append(data['image_file'])
+            image_file = np.array(image_file_list)
+            np.savez_compressed('./token_image_file/' + 'token_image_file_' + osp.basename(img_metas[0]['image_file']) + '.npz',
+                                image_file = image_file)
+            np.savez_compressed('./token_heatmap_image_file/' + 'token_heatmap_image_file_' + osp.basename(img_metas[0]['image_file']) + '.npz',
+                                heatmap = output.pred.detach().cpu().numpy(), image_file = image_file)
 
         # if return loss
         losses = dict()
